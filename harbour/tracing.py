@@ -6,8 +6,8 @@ Spans are written one-per-line as JSON to ``$HARBOUR_TRACE_FILE`` (default
     {"trace_id", "span_id", "parent_span_id", "name", "start_ms", "end_ms",
      "attributes": {...}}
 
-The file is append-only. Nothing here talks to a collector; the exporter that
-ships the JSONL onwards lives outside this package.
+The file is append-only. When ``OTEL_EXPORTER_OTLP_ENDPOINT`` is set, ``export_otlp``
+POSTs the same spans to ``<endpoint>/v1/traces`` as OTLP/JSON.
 """
 
 from __future__ import annotations
@@ -15,16 +15,25 @@ from __future__ import annotations
 import contextvars
 import json
 import os
+import re
 import threading
 import time
 import uuid
+import urllib.error
+import urllib.request
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator
 
 DEFAULT_TRACE_FILE = "traces/otlp.jsonl"
+_PRICES_PATH = Path(__file__).resolve().parent.parent / "contract_check" / "prices.yaml"
+_DEFAULT_PRICES = {
+    "gpt-4.1-mini-2025-04-14": (0.40, 1.60),
+    "gpt-5-mini-2025-08-07": (0.25, 2.00),
+}
 
 _write_lock = threading.Lock()
+_pending: dict[str, list[dict[str, Any]]] = {}
 
 _trace_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "harbour_trace_id", default=None
@@ -36,15 +45,34 @@ _case_id: contextvars.ContextVar[str] = contextvars.ContextVar(
     "harbour_case_id", default=""
 )
 
-# Rupee-free: the gateway bills in USD, so prices are per 1M tokens in USD.
-_MODEL_PRICES: dict[str, tuple[float, float]] = {
-    "gpt-4o": (2.50, 10.00),
-    "gpt-4o-mini": (0.15, 0.60),
-    "gpt-4.1": (2.00, 8.00),
-    "gpt-4.1-mini": (0.40, 1.60),
-    "o4-mini": (1.10, 4.40),
-}
-_FALLBACK_PRICE = (0.50, 1.50)
+def _load_prices() -> dict[str, tuple[float, float]]:
+    path = Path(os.environ["PRICES"]) if os.environ.get("PRICES") else _PRICES_PATH
+    if not path.is_file():
+        return dict(_DEFAULT_PRICES)
+    prices = dict(_DEFAULT_PRICES)
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.split("#", 1)[0].strip()
+        match = re.match(
+            r"^([A-Za-z0-9._-]+):\s*\{input:\s*([0-9.]+),\s*output:\s*([0-9.]+)\}",
+            line,
+        )
+        if match:
+            prices[match.group(1)] = (float(match.group(2)), float(match.group(3)))
+    return prices
+
+
+def cost_usd_for(model: str, input_tokens: int, output_tokens: int) -> float:
+    """USD for one call at contract_check/prices.yaml rates (exact id, then prefix)."""
+    prices = _load_prices()
+    rates = prices.get(model)
+    if rates is None:
+        prefix = ""
+        for name, pair in prices.items():
+            if model.startswith(name) and len(name) >= len(prefix):
+                prefix, rates = name, pair
+    if rates is None:
+        return 0.0
+    return input_tokens * rates[0] / 1e6 + output_tokens * rates[1] / 1e6
 
 
 def trace_file() -> Path:
@@ -57,10 +85,7 @@ def _new_id(width: int) -> str:
 
 
 def _price(model: str, input_tokens: int, output_tokens: int) -> float:
-    """USD cost of a single model call, rounded to six decimal places."""
-    per_in, per_out = _MODEL_PRICES.get(model, _FALLBACK_PRICE)
-    cost = (input_tokens * per_in + output_tokens * per_out) / 1_000_000.0
-    return round(cost, 6)
+    return round(cost_usd_for(model, input_tokens, output_tokens), 6)
 
 
 def current_trace_id() -> str:
@@ -96,6 +121,72 @@ def _emit(record: dict[str, Any]) -> None:
     with _write_lock:
         with path.open("a", encoding="utf-8") as fh:
             fh.write(line + "\n")
+        _pending.setdefault(str(record.get("trace_id") or ""), []).append(record)
+
+
+def _otlp_kv(key: str, value: Any) -> dict[str, Any]:
+    if isinstance(value, bool):
+        packed: dict[str, Any] = {"boolValue": value}
+    elif isinstance(value, int):
+        packed = {"intValue": str(value)}
+    elif isinstance(value, float):
+        packed = {"doubleValue": value}
+    else:
+        packed = {"stringValue": str(value)}
+    return {"key": key, "value": packed}
+
+
+def export_otlp(trace_id: str) -> None:
+    """POST this request's spans to OTEL_EXPORTER_OTLP_ENDPOINT/v1/traces (JSON)."""
+    endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "").rstrip("/")
+    if not endpoint or not trace_id:
+        return
+    with _write_lock:
+        records = list(_pending.get(trace_id, []))
+    if not records:
+        return
+    spans = []
+    for record in records:
+        attrs = [
+            _otlp_kv(key, value)
+            for key, value in (record.get("attributes") or {}).items()
+            if value is not None
+        ]
+        start_ms = int(record.get("start_ms") or 0)
+        end_ms = int(record.get("end_ms") or start_ms)
+        spans.append(
+            {
+                "traceId": record["trace_id"],
+                "spanId": record["span_id"],
+                "parentSpanId": record.get("parent_span_id") or "",
+                "name": record.get("name") or "",
+                "kind": 1,
+                "startTimeUnixNano": str(start_ms * 1_000_000),
+                "endTimeUnixNano": str(end_ms * 1_000_000),
+                "attributes": attrs,
+                "status": {"code": 1},
+            }
+        )
+    payload = {
+        "resourceSpans": [
+            {
+                "resource": {"attributes": [_otlp_kv("service.name", "harbour")]},
+                "scopeSpans": [{"scope": {"name": "harbour"}, "spans": spans}],
+            }
+        ]
+    }
+    body = json.dumps(payload).encode("utf-8")
+    request = urllib.request.Request(
+        endpoint + "/v1/traces",
+        data=body,
+        method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=3) as response:
+            response.read()
+    except (urllib.error.URLError, TimeoutError, OSError):
+        pass
 
 
 class Span:

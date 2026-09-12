@@ -370,7 +370,8 @@ def test_healthz(running_service):
     base, _ = running_service
     status, body = _get(f"{base}/healthz")
     assert status == 200
-    assert body == {"ok": True}
+    assert body["status"] == "ok"
+    assert "version" in body
 
 
 def test_post_case_end_to_end(running_service, offline_env):

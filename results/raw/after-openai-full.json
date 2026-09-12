@@ -1,0 +1,398 @@
+{
+  "harness_version": "1.0",
+  "target": "http://127.0.0.1:8000",
+  "upstream": "https://api.openai.com/v1",
+  "repo": ".",
+  "started_at": "2026-09-12T12:05:28+00:00",
+  "finished_at": "2026-09-12T12:11:07+00:00",
+  "service_log": "/var/folders/m2/_3_gjl6n0w3fzggrqjcg2nf40000gn/T/op01-service-8000.log",
+  "items": [
+    {
+      "id": 1,
+      "name": "route every model call through LLM_BASE_URL",
+      "status": "pass",
+      "reason": "",
+      "evidence": {
+        "run": {
+          "status": 200,
+          "body": {
+            "output": "{\"ok\": true}",
+            "trace_id": "8cf0bbfa25b04a1abf13722a61ce28e8",
+            "cost_usd": 1.9600000000000002e-05
+          },
+          "elapsed_s": 1.005,
+          "completed_s": 1.005,
+          "calls": 1,
+          "spend": 1.959999999999999e-05,
+          "input_tokens": 29,
+          "output_tokens": 5
+        },
+        "unauthorized": 0
+      }
+    },
+    {
+      "id": 2,
+      "name": "/healthz and /readyz",
+      "status": "pass",
+      "reason": "",
+      "evidence": {
+        "healthz": {
+          "status": 200,
+          "body": {
+            "status": "ok",
+            "version": "1.0.0"
+          }
+        },
+        "readyz": {
+          "status": 200,
+          "body": {
+            "ready": true,
+            "checks": {
+              "config_valid": true,
+              "spend_cap_ok": true,
+              "index_loaded": true
+            }
+          }
+        },
+        "invalid_config": "ready=false"
+      }
+    },
+    {
+      "id": 3,
+      "name": "OpenTelemetry traces",
+      "status": "fail",
+      "reason": "trace d78a56a61e0f4b7fafe23a6890860e76 not received by the collector within 10.0s",
+      "evidence": {
+        "run": {
+          "status": 200,
+          "body": {
+            "output": "{\"ok\": true}",
+            "trace_id": "d78a56a61e0f4b7fafe23a6890860e76",
+            "cost_usd": 1.9600000000000002e-05
+          },
+          "elapsed_s": 0.866,
+          "completed_s": 0.866,
+          "calls": 1,
+          "spend": 1.959999999999999e-05,
+          "input_tokens": 29,
+          "output_tokens": 5
+        }
+      }
+    },
+    {
+      "id": 4,
+      "name": "hard spend cap",
+      "status": "pass",
+      "reason": "",
+      "evidence": {
+        "cap_usd": 0.002,
+        "runs_before_cap": 99,
+        "spend_usd": 0.002019599999999996,
+        "max_request_cost_usd": 2.0400000000000062e-05,
+        "after_cap": [
+          [
+            503,
+            "spend_cap_reached"
+          ],
+          [
+            503,
+            "spend_cap_reached"
+          ]
+        ],
+        "readyz_at_cap": 503
+      }
+    },
+    {
+      "id": 5,
+      "name": "fault injection",
+      "status": "fail",
+      "reason": "4/12 scenario runs failed: slow10x#0: transport failure: ReadTimeout('timed out'); slow10x#1: transport failure: ReadTimeout('timed out'); tool_timeout#0: transport failure: ReadTimeout('timed out'); tool_timeout#1: transport failure: ReadTimeout('timed out')",
+      "evidence": {
+        "runs": 12,
+        "failed": 4
+      }
+    },
+    {
+      "id": 6,
+      "name": "idempotency key",
+      "status": "pass",
+      "reason": "",
+      "evidence": {
+        "first": {
+          "status": 200,
+          "body": {
+            "output": "{\"ok\": true}",
+            "trace_id": "cbf6e27d26f6421fb6bf612933777637",
+            "cost_usd": 2.04e-05
+          },
+          "elapsed_s": 0.965,
+          "completed_s": 0.965,
+          "calls": 1,
+          "spend": 2.0400000000000008e-05,
+          "input_tokens": 31,
+          "output_tokens": 5
+        },
+        "replay": {
+          "status": 200,
+          "body": {
+            "output": "{\"ok\": true}",
+            "trace_id": "cbf6e27d26f6421fb6bf612933777637",
+            "cost_usd": 2.04e-05
+          },
+          "elapsed_s": 0.001,
+          "completed_s": 0.001,
+          "calls": 0,
+          "spend": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        },
+        "conflict": [
+          409,
+          "idempotency_conflict"
+        ],
+        "concurrent": {
+          "statuses": [
+            200,
+            200,
+            200
+          ],
+          "calls": 1,
+          "allowed": 1
+        }
+      }
+    },
+    {
+      "id": 7,
+      "name": "secrets only from the environment",
+      "status": "pass",
+      "reason": "",
+      "evidence": {
+        "scanned_files": 32,
+        "findings": [],
+        "gateway_unauthorized": 0
+      }
+    },
+    {
+      "id": 8,
+      "name": "two versions side by side",
+      "status": "fail",
+      "reason": "RUNBOOK.md has no heading containing 'rollback'",
+      "evidence": {
+        "rollback_heading": false,
+        "versions": {
+          "a": "1.0.0",
+          "b": "1.0.0-b"
+        },
+        "runs": {
+          "a": [
+            200,
+            null
+          ],
+          "b": [
+            200,
+            null
+          ]
+        },
+        "after_rollback": [
+          200,
+          null
+        ]
+      }
+    },
+    {
+      "id": 9,
+      "name": "make eval and prompt regressions",
+      "status": "fail",
+      "reason": "baseline eval: eval_report.json was not written at the repository root",
+      "evidence": {
+        "baseline": {
+          "regression": "none",
+          "exit_code": 0,
+          "elapsed_s": 0.0,
+          "stderr_tail": "",
+          "error": "eval_report.json was not written at the repository root"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "name": "RUNBOOK, THREAT_MODEL, SLO",
+      "status": "fail",
+      "reason": "RUNBOOK.md missing; THREAT_MODEL.md missing; SLO.md missing",
+      "evidence": {}
+    }
+  ],
+  "fault_scenarios": [
+    {
+      "mode": "http500",
+      "repeat": 0,
+      "status": "pass",
+      "reason": "",
+      "http_status": 502,
+      "code": "upstream_error",
+      "elapsed_s": 4.088,
+      "completed_s": 4.088,
+      "attempts": 4
+    },
+    {
+      "mode": "http500",
+      "repeat": 1,
+      "status": "pass",
+      "reason": "",
+      "http_status": 502,
+      "code": "upstream_error",
+      "elapsed_s": 4.166,
+      "completed_s": 4.166,
+      "attempts": 4
+    },
+    {
+      "mode": "http429",
+      "repeat": 0,
+      "status": "pass",
+      "reason": "",
+      "http_status": 200,
+      "code": null,
+      "elapsed_s": 3.826,
+      "completed_s": 3.826,
+      "attempts": 3
+    },
+    {
+      "mode": "http429",
+      "repeat": 1,
+      "status": "pass",
+      "reason": "",
+      "http_status": 200,
+      "code": null,
+      "elapsed_s": 5.08,
+      "completed_s": 5.08,
+      "attempts": 3
+    },
+    {
+      "mode": "slow10x",
+      "repeat": 0,
+      "status": "fail",
+      "reason": "transport failure: ReadTimeout('timed out')",
+      "http_status": 0,
+      "code": "transport",
+      "elapsed_s": 35.004,
+      "completed_s": 35.004,
+      "attempts": 1
+    },
+    {
+      "mode": "slow10x",
+      "repeat": 1,
+      "status": "fail",
+      "reason": "transport failure: ReadTimeout('timed out')",
+      "http_status": 0,
+      "code": "transport",
+      "elapsed_s": 35.004,
+      "completed_s": 35.004,
+      "attempts": 1
+    },
+    {
+      "mode": "malformed",
+      "repeat": 0,
+      "status": "pass",
+      "reason": "",
+      "http_status": 200,
+      "code": null,
+      "elapsed_s": 0.773,
+      "completed_s": 0.773,
+      "attempts": 1
+    },
+    {
+      "mode": "malformed",
+      "repeat": 1,
+      "status": "pass",
+      "reason": "",
+      "http_status": 200,
+      "code": null,
+      "elapsed_s": 0.931,
+      "completed_s": 0.931,
+      "attempts": 1
+    },
+    {
+      "mode": "tool_timeout",
+      "repeat": 0,
+      "status": "fail",
+      "reason": "transport failure: ReadTimeout('timed out')",
+      "http_status": 0,
+      "code": "transport",
+      "elapsed_s": 35.002,
+      "completed_s": 35.002,
+      "attempts": 1
+    },
+    {
+      "mode": "tool_timeout",
+      "repeat": 1,
+      "status": "fail",
+      "reason": "transport failure: ReadTimeout('timed out')",
+      "http_status": 0,
+      "code": "transport",
+      "elapsed_s": 35.003,
+      "completed_s": 35.003,
+      "attempts": 1
+    },
+    {
+      "mode": "drop_stream",
+      "repeat": 0,
+      "status": "pass",
+      "reason": "",
+      "http_status": 502,
+      "code": "upstream_error",
+      "elapsed_s": 0.882,
+      "completed_s": 0.882,
+      "attempts": 1
+    },
+    {
+      "mode": "drop_stream",
+      "repeat": 1,
+      "status": "pass",
+      "reason": "",
+      "http_status": 502,
+      "code": "upstream_error",
+      "elapsed_s": 0.801,
+      "completed_s": 0.801,
+      "attempts": 1
+    }
+  ],
+  "regressions": [
+    {
+      "name": "strip_system_prompt",
+      "status": "skip",
+      "reason": "regression was not reached; see item 9 or startup failure"
+    },
+    {
+      "name": "truncate_output",
+      "status": "skip",
+      "reason": "regression was not reached; see item 9 or startup failure"
+    },
+    {
+      "name": "scramble_tool_args",
+      "status": "skip",
+      "reason": "regression was not reached; see item 9 or startup failure"
+    },
+    {
+      "name": "model_identity_drift",
+      "status": "skip",
+      "reason": "regression was not reached; see item 9 or startup failure"
+    }
+  ],
+  "latency": {
+    "samples": 20,
+    "p95_ms": 1223.0,
+    "p50_ms": 945.5,
+    "baseline_p95_ms": null,
+    "ratio": null,
+    "status": "info"
+  },
+  "summary": {
+    "contract_items_passed": 5,
+    "contract_items_run": 10,
+    "fault_scenarios_passed_pct": 66.7,
+    "latency_overhead_ratio": null,
+    "eval_cases": null,
+    "eval_regression_threshold": null,
+    "all_run_items_passed": false
+  }
+}

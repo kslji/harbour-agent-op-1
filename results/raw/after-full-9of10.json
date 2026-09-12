@@ -1,0 +1,464 @@
+{
+  "harness_version": "1.0",
+  "target": "http://127.0.0.1:8000",
+  "upstream": "https://api.openai.com/v1",
+  "repo": ".",
+  "started_at": "2026-09-12T18:42:23+00:00",
+  "finished_at": "2026-09-12T18:48:45+00:00",
+  "service_log": "/var/folders/m2/_3_gjl6n0w3fzggrqjcg2nf40000gn/T/op01-service-8000.log",
+  "items": [
+    {
+      "id": 1,
+      "name": "route every model call through LLM_BASE_URL",
+      "status": "pass",
+      "reason": "",
+      "evidence": {
+        "run": {
+          "status": 200,
+          "body": {
+            "output": "{\"ok\": true}",
+            "trace_id": "50386b8e60c54058bba48fac351d032d",
+            "cost_usd": 1.9600000000000002e-05
+          },
+          "elapsed_s": 0.959,
+          "completed_s": 0.959,
+          "calls": 1,
+          "spend": 1.959999999999999e-05,
+          "input_tokens": 29,
+          "output_tokens": 5
+        },
+        "unauthorized": 0
+      }
+    },
+    {
+      "id": 2,
+      "name": "/healthz and /readyz",
+      "status": "pass",
+      "reason": "",
+      "evidence": {
+        "healthz": {
+          "status": 200,
+          "body": {
+            "status": "ok",
+            "version": "1.0.0"
+          }
+        },
+        "readyz": {
+          "status": 200,
+          "body": {
+            "ready": true,
+            "checks": {
+              "config_valid": true,
+              "spend_cap_ok": true,
+              "index_loaded": true
+            }
+          }
+        },
+        "invalid_config": "ready=false"
+      }
+    },
+    {
+      "id": 3,
+      "name": "OpenTelemetry traces",
+      "status": "pass",
+      "reason": "",
+      "evidence": {
+        "run": {
+          "status": 200,
+          "body": {
+            "output": "{\"ok\": true}",
+            "trace_id": "5cc098c0b1a648be96378bf74bfd70e1",
+            "cost_usd": 1.9600000000000002e-05
+          },
+          "elapsed_s": 0.744,
+          "completed_s": 0.744,
+          "calls": 1,
+          "spend": 1.959999999999999e-05,
+          "input_tokens": 29,
+          "output_tokens": 5
+        },
+        "trace": {
+          "span_count": 2,
+          "roots": [
+            "cdf5ef123d084983"
+          ],
+          "model_calls": [
+            {
+              "span_id": "5ac4ad22ddc9423d",
+              "name": "chat gpt-4.1-mini-2025-04-14",
+              "model": "gpt-4.1-mini-2025-04-14",
+              "input_tokens": 29,
+              "output_tokens": 5,
+              "cost_usd": 1.9600000000000002e-05
+            }
+          ],
+          "tool_calls": [],
+          "totals": {
+            "input_tokens": 29,
+            "output_tokens": 5,
+            "cost_usd": 1.9600000000000002e-05
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "name": "hard spend cap",
+      "status": "fail",
+      "reason": "gateway usage or exact model price is unavailable; spend cannot be verified",
+      "evidence": {}
+    },
+    {
+      "id": 5,
+      "name": "fault injection",
+      "status": "pass",
+      "reason": "",
+      "evidence": {
+        "runs": 12,
+        "failed": 0
+      }
+    },
+    {
+      "id": 6,
+      "name": "idempotency key",
+      "status": "pass",
+      "reason": "",
+      "evidence": {
+        "first": {
+          "status": 200,
+          "body": {
+            "output": "{\"ok\": true}",
+            "trace_id": "7046727019b84e7890efbc3734deada0",
+            "cost_usd": 2.04e-05
+          },
+          "elapsed_s": 0.677,
+          "completed_s": 0.677,
+          "calls": 1,
+          "spend": 2.0400000000000008e-05,
+          "input_tokens": 31,
+          "output_tokens": 5
+        },
+        "replay": {
+          "status": 200,
+          "body": {
+            "output": "{\"ok\": true}",
+            "trace_id": "7046727019b84e7890efbc3734deada0",
+            "cost_usd": 2.04e-05
+          },
+          "elapsed_s": 0.001,
+          "completed_s": 0.001,
+          "calls": 0,
+          "spend": 0.0,
+          "input_tokens": 0,
+          "output_tokens": 0
+        },
+        "conflict": [
+          409,
+          "idempotency_conflict"
+        ],
+        "concurrent": {
+          "statuses": [
+            200,
+            200,
+            200
+          ],
+          "calls": 1,
+          "allowed": 1
+        }
+      }
+    },
+    {
+      "id": 7,
+      "name": "secrets only from the environment",
+      "status": "pass",
+      "reason": "",
+      "evidence": {
+        "scanned_files": 32,
+        "findings": [],
+        "gateway_unauthorized": 0
+      }
+    },
+    {
+      "id": 8,
+      "name": "two versions side by side",
+      "status": "pass",
+      "reason": "",
+      "evidence": {
+        "rollback_heading": true,
+        "versions": {
+          "a": "1.0.0",
+          "b": "1.0.0-b"
+        },
+        "runs": {
+          "a": [
+            200,
+            null
+          ],
+          "b": [
+            200,
+            null
+          ]
+        },
+        "after_rollback": [
+          200,
+          null
+        ]
+      }
+    },
+    {
+      "id": 9,
+      "name": "make eval and prompt regressions",
+      "status": "pass",
+      "reason": "",
+      "evidence": {
+        "baseline": {
+          "regression": "none",
+          "exit_code": 0,
+          "elapsed_s": 52.1,
+          "stderr_tail": "",
+          "report": {
+            "cases": 50,
+            "passed": 48,
+            "threshold": 0.9,
+            "pass": true
+          }
+        },
+        "regressions": {
+          "strip_system_prompt": "pass",
+          "truncate_output": "pass",
+          "scramble_tool_args": "pass",
+          "model_identity_drift": "pass"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "name": "RUNBOOK, THREAT_MODEL, SLO",
+      "status": "pass",
+      "reason": "",
+      "evidence": {
+        "RUNBOOK.md": {
+          "non_blank_lines": 58,
+          "heuristic": true
+        },
+        "THREAT_MODEL.md": {
+          "non_blank_lines": 50,
+          "heuristic": true
+        },
+        "SLO.md": {
+          "non_blank_lines": 41,
+          "heuristic": true
+        }
+      }
+    }
+  ],
+  "fault_scenarios": [
+    {
+      "mode": "http500",
+      "repeat": 0,
+      "status": "pass",
+      "reason": "",
+      "http_status": 502,
+      "code": "upstream_error",
+      "elapsed_s": 1.23,
+      "completed_s": 1.23,
+      "attempts": 4
+    },
+    {
+      "mode": "http500",
+      "repeat": 1,
+      "status": "pass",
+      "reason": "",
+      "http_status": 502,
+      "code": "upstream_error",
+      "elapsed_s": 1.232,
+      "completed_s": 1.232,
+      "attempts": 4
+    },
+    {
+      "mode": "http429",
+      "repeat": 0,
+      "status": "pass",
+      "reason": "",
+      "http_status": 200,
+      "code": null,
+      "elapsed_s": 2.975,
+      "completed_s": 2.975,
+      "attempts": 3
+    },
+    {
+      "mode": "http429",
+      "repeat": 1,
+      "status": "pass",
+      "reason": "",
+      "http_status": 200,
+      "code": null,
+      "elapsed_s": 2.72,
+      "completed_s": 2.72,
+      "attempts": 3
+    },
+    {
+      "mode": "slow10x",
+      "repeat": 0,
+      "status": "pass",
+      "reason": "",
+      "http_status": 504,
+      "code": "upstream_timeout",
+      "elapsed_s": 8.009,
+      "completed_s": 8.009,
+      "attempts": 1
+    },
+    {
+      "mode": "slow10x",
+      "repeat": 1,
+      "status": "pass",
+      "reason": "",
+      "http_status": 504,
+      "code": "upstream_timeout",
+      "elapsed_s": 8.011,
+      "completed_s": 8.011,
+      "attempts": 1
+    },
+    {
+      "mode": "malformed",
+      "repeat": 0,
+      "status": "pass",
+      "reason": "",
+      "http_status": 200,
+      "code": null,
+      "elapsed_s": 1.08,
+      "completed_s": 1.08,
+      "attempts": 1
+    },
+    {
+      "mode": "malformed",
+      "repeat": 1,
+      "status": "pass",
+      "reason": "",
+      "http_status": 200,
+      "code": null,
+      "elapsed_s": 0.699,
+      "completed_s": 0.699,
+      "attempts": 1
+    },
+    {
+      "mode": "tool_timeout",
+      "repeat": 0,
+      "status": "pass",
+      "reason": "",
+      "http_status": 504,
+      "code": "upstream_timeout",
+      "elapsed_s": 8.007,
+      "completed_s": 8.007,
+      "attempts": 1
+    },
+    {
+      "mode": "tool_timeout",
+      "repeat": 1,
+      "status": "pass",
+      "reason": "",
+      "http_status": 504,
+      "code": "upstream_timeout",
+      "elapsed_s": 8.011,
+      "completed_s": 8.011,
+      "attempts": 1
+    },
+    {
+      "mode": "drop_stream",
+      "repeat": 0,
+      "status": "pass",
+      "reason": "",
+      "http_status": 200,
+      "code": null,
+      "elapsed_s": 2.148,
+      "completed_s": 2.148,
+      "attempts": 2
+    },
+    {
+      "mode": "drop_stream",
+      "repeat": 1,
+      "status": "pass",
+      "reason": "",
+      "http_status": 200,
+      "code": null,
+      "elapsed_s": 1.647,
+      "completed_s": 1.647,
+      "attempts": 2
+    }
+  ],
+  "regressions": [
+    {
+      "name": "strip_system_prompt",
+      "status": "pass",
+      "regression": "strip_system_prompt",
+      "exit_code": 2,
+      "elapsed_s": 53.4,
+      "stderr_tail": "make: *** [eval] Error 1\n",
+      "report": {
+        "cases": 50,
+        "passed": 0,
+        "threshold": 0.9,
+        "pass": false
+      }
+    },
+    {
+      "name": "truncate_output",
+      "status": "pass",
+      "regression": "truncate_output",
+      "exit_code": 2,
+      "elapsed_s": 54.4,
+      "stderr_tail": "make: *** [eval] Error 1\n",
+      "report": {
+        "cases": 50,
+        "passed": 0,
+        "threshold": 0.9,
+        "pass": false
+      }
+    },
+    {
+      "name": "scramble_tool_args",
+      "status": "pass",
+      "regression": "scramble_tool_args",
+      "exit_code": 2,
+      "elapsed_s": 52.4,
+      "stderr_tail": "make: *** [eval] Error 1\n",
+      "report": {
+        "cases": 50,
+        "passed": 0,
+        "threshold": 0.9,
+        "pass": false
+      }
+    },
+    {
+      "name": "model_identity_drift",
+      "status": "pass",
+      "regression": "model_identity_drift",
+      "exit_code": 2,
+      "elapsed_s": 54.6,
+      "stderr_tail": "make: *** [eval] Error 1\n",
+      "report": {
+        "cases": 50,
+        "passed": 0,
+        "threshold": 0.9,
+        "pass": false
+      }
+    }
+  ],
+  "latency": {
+    "samples": 20,
+    "p95_ms": 924.0,
+    "p50_ms": 760.0,
+    "baseline_p95_ms": null,
+    "ratio": null,
+    "status": "info"
+  },
+  "summary": {
+    "contract_items_passed": 9,
+    "contract_items_run": 10,
+    "fault_scenarios_passed_pct": 100.0,
+    "latency_overhead_ratio": null,
+    "eval_cases": 50,
+    "eval_regression_threshold": 0.9,
+    "all_run_items_passed": false
+  }
+}

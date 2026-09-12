@@ -1,0 +1,153 @@
+{
+  "harness_version": "1.0",
+  "target": "http://127.0.0.1:8000",
+  "upstream": "https://api.openai.com/v1",
+  "repo": ".",
+  "started_at": "2026-09-12T12:39:01+00:00",
+  "finished_at": "2026-09-12T12:39:05+00:00",
+  "service_log": "/var/folders/m2/_3_gjl6n0w3fzggrqjcg2nf40000gn/T/op01-service-8000.log",
+  "items": [
+    {
+      "id": 1,
+      "name": "route every model call through LLM_BASE_URL",
+      "status": "skip",
+      "reason": "not selected",
+      "evidence": {}
+    },
+    {
+      "id": 2,
+      "name": "/healthz and /readyz",
+      "status": "skip",
+      "reason": "not selected",
+      "evidence": {}
+    },
+    {
+      "id": 3,
+      "name": "OpenTelemetry traces",
+      "status": "pass",
+      "reason": "",
+      "evidence": {
+        "run": {
+          "status": 200,
+          "body": {
+            "output": "{\"ok\": true}",
+            "trace_id": "498785401ba94c2981bcc16176d6af2f",
+            "cost_usd": 1.9600000000000002e-05
+          },
+          "elapsed_s": 0.988,
+          "completed_s": 0.988,
+          "calls": 1,
+          "spend": 1.9600000000000002e-05,
+          "input_tokens": 29,
+          "output_tokens": 5
+        },
+        "trace": {
+          "span_count": 2,
+          "roots": [
+            "248bafa2639c4dd0"
+          ],
+          "model_calls": [
+            {
+              "span_id": "73af0ba41db84de2",
+              "name": "chat gpt-4.1-mini-2025-04-14",
+              "model": "gpt-4.1-mini-2025-04-14",
+              "input_tokens": 29,
+              "output_tokens": 5,
+              "cost_usd": 1.9600000000000002e-05
+            }
+          ],
+          "tool_calls": [],
+          "totals": {
+            "input_tokens": 29,
+            "output_tokens": 5,
+            "cost_usd": 1.9600000000000002e-05
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "name": "hard spend cap",
+      "status": "skip",
+      "reason": "not selected",
+      "evidence": {}
+    },
+    {
+      "id": 5,
+      "name": "fault injection",
+      "status": "skip",
+      "reason": "not selected",
+      "evidence": {}
+    },
+    {
+      "id": 6,
+      "name": "idempotency key",
+      "status": "skip",
+      "reason": "not selected",
+      "evidence": {}
+    },
+    {
+      "id": 7,
+      "name": "secrets only from the environment",
+      "status": "skip",
+      "reason": "not selected",
+      "evidence": {}
+    },
+    {
+      "id": 8,
+      "name": "two versions side by side",
+      "status": "skip",
+      "reason": "not selected",
+      "evidence": {}
+    },
+    {
+      "id": 9,
+      "name": "make eval and prompt regressions",
+      "status": "skip",
+      "reason": "not selected",
+      "evidence": {}
+    },
+    {
+      "id": 10,
+      "name": "RUNBOOK, THREAT_MODEL, SLO",
+      "status": "skip",
+      "reason": "not selected",
+      "evidence": {}
+    }
+  ],
+  "fault_scenarios": [],
+  "regressions": [
+    {
+      "name": "strip_system_prompt",
+      "status": "skip",
+      "reason": "regression was not reached; see item 9 or startup failure"
+    },
+    {
+      "name": "truncate_output",
+      "status": "skip",
+      "reason": "regression was not reached; see item 9 or startup failure"
+    },
+    {
+      "name": "scramble_tool_args",
+      "status": "skip",
+      "reason": "regression was not reached; see item 9 or startup failure"
+    },
+    {
+      "name": "model_identity_drift",
+      "status": "skip",
+      "reason": "regression was not reached; see item 9 or startup failure"
+    }
+  ],
+  "latency": {
+    "status": "skip"
+  },
+  "summary": {
+    "contract_items_passed": 1,
+    "contract_items_run": 1,
+    "fault_scenarios_passed_pct": null,
+    "latency_overhead_ratio": null,
+    "eval_cases": null,
+    "eval_regression_threshold": null,
+    "all_run_items_passed": true
+  }
+}

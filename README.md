@@ -1,40 +1,43 @@
-# references/OP-01 — Ship the Thing You Inherited
+# Harbour — OP-01 solution
 
-**Status: Harbour is here.** The service, its backend, the fourteen tools, the servicing policy and the production contract are published and tested. The case set is published. What stays private is what decides your grade.
+Hardened loan-servicing agent for Deployment.inc Open Problem 01. Keep `POST /case`. Do not treat this folder as `references/OP-01` on the public board.
 
-| Item | Status |
-|---|---|
-| `harbour/` — the service, backend, 14 tools, `policy.md`, seed data | **published, offline tests included** |
-| `contract.md` and `contract_check/` — the ten machine-checked items, a fault-injecting gateway, an OTLP collector and a conformance runner | **published, tested** |
-| `cases/cases.jsonl` — 180 cases with exact expected end states | **published** |
-| `eval/` — the starter eval suite you inherit | **published** |
-| 60 held-out cases | never published |
-| the four deterministic gateway regression modes | published in contract_check |
-| our defect detectors | never published |
-| the current starter reference measurements | CALIBRATION.md |
+**Do not commit API keys.** Export them in the shell.
 
-## Running it
+## Run
+
+Python 3.11 (Apple’s 3.9 breaks `datetime.UTC` in the checker).
 
 ```bash
-cd references/OP-01
-python -m harbour.seed_data --out harbour/seed.json      # regenerate seed data (deterministic)
-LLM_FAKE=1 python -m harbour.service                     # start on :8080 with no API key
-curl -s localhost:8080/healthz
-python -m pytest harbour/tests -q                        # offline runtime tests
+export LLM_BASE_URL=https://api.openai.com/v1   # or the contract gateway
+export LLM_API_KEY=...                          # gateway token in exam mode
+export LLM_MODEL=gpt-4.1-mini-2025-04-14
+export APP_VERSION=1.0.0
+export PORT=8000
+export MAX_SPEND_USD=5
+# optional: OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:8602
+
+./scripts/reproduce.sh start
+# or: /opt/homebrew/bin/python3.11 -m harbour.service
 ```
 
-`LLM_FAKE=1` runs the agent against canned deterministic responses, so you can drive a full case with no
-model access at all. Point `LLM_BASE_URL` at a real gateway when you want the genuine thing; `llm.py` is
-the only outbound path, so whatever sits in front of that URL sees every call.
+`LLM_FAKE=1` is canned replies only (offline tests). Unset it for real model traffic.
 
-## What we grade, and what we do not
+```bash
+./scripts/reproduce.sh eval     # make eval → eval_report.json at repo root
+./scripts/reproduce.sh help     # how to invoke the contract checker
+```
 
-We read artefacts your run **emits as data**: the append-only `audit_log`, the trace export, the gateway
-ledger, and your own eval reports. We never grade a number your process reports about its own
-correctness, cost or coverage. That is why the audit log is written by the tool layer rather than by the
-agent — the agent cannot tell us what it did, only do it.
+## What changed (short)
 
-## A note on the shipped agent
+HTTP: `/healthz`, `/readyz`, `POST /run` (idempotency, spend, OTEL). LLM: 8 s timeout, mapped 502/503/504. Eval: `make eval`, 50 probes when `LLM_BASE_URL` is set. Agent/backend: verify this case before money tools including `cancel_autopay`; refuse overlay-only extra tools before audit.
 
-It works on the happy path. The team that wrote it left. The starter eval suite is green. Read all three
-of those facts as evidence rather than reassurance.
+Unmodified on purpose: `cases/cases.jsonl`, `goal_scorer.py`, `contract_check/`.
+
+## Evidence
+
+- `results/contract_check.json` — 10/10 (13 Sep 2026)
+- `results/raw/` — earlier fails and `--only` runs
+- `EXPERIMENT_LOG.md`, `DECISIONS.md`, `MEMO.md`, `RUNBOOK.md`, `THREAT_MODEL.md`, `SLO.md`
+
+Held-out match rate is not claimed here.

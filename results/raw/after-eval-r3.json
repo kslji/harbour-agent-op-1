@@ -1,0 +1,171 @@
+{
+  "harness_version": "1.0",
+  "target": "http://127.0.0.1:8000",
+  "upstream": "https://api.openai.com/v1",
+  "repo": ".",
+  "started_at": "2026-09-12T13:36:36+00:00",
+  "finished_at": "2026-09-12T13:41:21+00:00",
+  "service_log": "/var/folders/m2/_3_gjl6n0w3fzggrqjcg2nf40000gn/T/op01-service-8000.log",
+  "items": [
+    {
+      "id": 1,
+      "name": "route every model call through LLM_BASE_URL",
+      "status": "skip",
+      "reason": "not selected",
+      "evidence": {}
+    },
+    {
+      "id": 2,
+      "name": "/healthz and /readyz",
+      "status": "skip",
+      "reason": "not selected",
+      "evidence": {}
+    },
+    {
+      "id": 3,
+      "name": "OpenTelemetry traces",
+      "status": "skip",
+      "reason": "not selected",
+      "evidence": {}
+    },
+    {
+      "id": 4,
+      "name": "hard spend cap",
+      "status": "skip",
+      "reason": "not selected",
+      "evidence": {}
+    },
+    {
+      "id": 5,
+      "name": "fault injection",
+      "status": "skip",
+      "reason": "not selected",
+      "evidence": {}
+    },
+    {
+      "id": 6,
+      "name": "idempotency key",
+      "status": "skip",
+      "reason": "not selected",
+      "evidence": {}
+    },
+    {
+      "id": 7,
+      "name": "secrets only from the environment",
+      "status": "skip",
+      "reason": "not selected",
+      "evidence": {}
+    },
+    {
+      "id": 8,
+      "name": "two versions side by side",
+      "status": "skip",
+      "reason": "not selected",
+      "evidence": {}
+    },
+    {
+      "id": 9,
+      "name": "make eval and prompt regressions",
+      "status": "pass",
+      "reason": "",
+      "evidence": {
+        "baseline": {
+          "regression": "none",
+          "exit_code": 0,
+          "elapsed_s": 58.1,
+          "stderr_tail": "",
+          "report": {
+            "cases": 50,
+            "passed": 49,
+            "threshold": 0.9,
+            "pass": true
+          }
+        },
+        "regressions": {
+          "strip_system_prompt": "pass",
+          "truncate_output": "pass",
+          "scramble_tool_args": "pass",
+          "model_identity_drift": "pass"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "name": "RUNBOOK, THREAT_MODEL, SLO",
+      "status": "skip",
+      "reason": "not selected",
+      "evidence": {}
+    }
+  ],
+  "fault_scenarios": [],
+  "regressions": [
+    {
+      "name": "strip_system_prompt",
+      "status": "pass",
+      "regression": "strip_system_prompt",
+      "exit_code": 2,
+      "elapsed_s": 56.1,
+      "stderr_tail": "make: *** [eval] Error 1\n",
+      "report": {
+        "cases": 50,
+        "passed": 0,
+        "threshold": 0.9,
+        "pass": false
+      }
+    },
+    {
+      "name": "truncate_output",
+      "status": "pass",
+      "regression": "truncate_output",
+      "exit_code": 2,
+      "elapsed_s": 56.0,
+      "stderr_tail": "make: *** [eval] Error 1\n",
+      "report": {
+        "cases": 50,
+        "passed": 0,
+        "threshold": 0.9,
+        "pass": false
+      }
+    },
+    {
+      "name": "scramble_tool_args",
+      "status": "pass",
+      "regression": "scramble_tool_args",
+      "exit_code": 2,
+      "elapsed_s": 55.4,
+      "stderr_tail": "make: *** [eval] Error 1\n",
+      "report": {
+        "cases": 50,
+        "passed": 0,
+        "threshold": 0.9,
+        "pass": false
+      }
+    },
+    {
+      "name": "model_identity_drift",
+      "status": "pass",
+      "regression": "model_identity_drift",
+      "exit_code": 2,
+      "elapsed_s": 57.5,
+      "stderr_tail": "make: *** [eval] Error 1\n",
+      "report": {
+        "cases": 50,
+        "passed": 0,
+        "threshold": 0.9,
+        "pass": false
+      }
+    }
+  ],
+  "latency": {
+    "status": "skip"
+  },
+  "summary": {
+    "contract_items_passed": 1,
+    "contract_items_run": 1,
+    "fault_scenarios_passed_pct": null,
+    "latency_overhead_ratio": null,
+    "eval_cases": 50,
+    "eval_regression_threshold": 0.9,
+    "all_run_items_passed": true
+  }
+}

@@ -333,15 +333,34 @@ class Backend:
 
     # -- policy gate -------------------------------------------------------
 
-    def _require_verified(self, customer_id: str) -> None:
-        """Refuse the call unless the customer has passed identity verification.
+    def _verified_this_contact(self, case_id: str, customer_id: str) -> bool:
+        """True only when verify_identity succeeded on this case_id.
+
+        The customers.verified flag can be left set from an earlier contact
+        (seed data does that). Policy is per contact, so the audit trail of
+        this case is the gate, not the sticky row.
+        """
+        for row in self.audit_trail(case_id):
+            if row["tool"] != "verify_identity" or not row["ok"]:
+                continue
+            try:
+                result = json.loads(row["result_json"] or "null")
+                args = json.loads(row["args_json"] or "{}")
+            except ValueError:
+                continue
+            if result is True and args.get("customer_id") == customer_id:
+                return True
+        return False
+
+    def _require_verified(self, case_id: str, customer_id: str) -> None:
+        """Refuse unless verify_identity succeeded on this contact.
 
         Every tool that moves money, alters a payment obligation or forgives a
         charge must call this before it touches a row. See ``policy.md``, section
         "Identity before money".
         """
-        customer = self._customer(customer_id)
-        if not customer["verified"]:
+        self._customer(customer_id)
+        if not self._verified_this_contact(case_id, customer_id):
             raise PolicyError(
                 f"identity not verified for {customer_id}; "
                 f"verify_identity must succeed before any money movement"
@@ -412,7 +431,7 @@ class Backend:
     def schedule_payment(self, case_id: str, loan_id: str, amount: float, due_on: str) -> str:
         """Schedule a one-off payment against a loan. Returns the new payment id."""
         loan = self._loan(loan_id)
-        self._require_verified(loan["customer_id"])
+        self._require_verified(case_id, loan["customer_id"])
 
         if loan["status"] == "closed":
             raise PolicyError(f"loan {loan_id} is closed; no further payments may be scheduled")
@@ -456,7 +475,7 @@ class Backend:
         """Waive a fee that has been applied to a loan, within the waiver cap."""
         fee = self._fee(fee_id)
         loan = self._loan(fee["loan_id"])
-        self._require_verified(loan["customer_id"])
+        self._require_verified(case_id, loan["customer_id"])
 
         if fee["status"] == "waived":
             raise PolicyError(f"fee {fee_id} has already been waived")
@@ -488,7 +507,7 @@ class Backend:
     def apply_hardship_plan(self, case_id: str, loan_id: str, months: int) -> bool:
         """Place a loan on a hardship plan for a number of months."""
         loan = self._loan(loan_id)
-        self._require_verified(loan["customer_id"])
+        self._require_verified(case_id, loan["customer_id"])
         customer = self._customer(loan["customer_id"])
 
         try:
@@ -659,6 +678,7 @@ class Backend:
         dates; only the automatic collection stops.
         """
         loan = self._loan(loan_id)
+        self._require_verified(case_id, loan["customer_id"])
         if not loan["autopay"]:
             raise PolicyError(f"autopay is not active on loan {loan_id}")
         self.conn.execute("UPDATE loans SET autopay = 0 WHERE loan_id = ?", (loan_id,))

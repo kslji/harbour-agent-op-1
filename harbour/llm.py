@@ -9,8 +9,9 @@ Environment:
     LLM_MODEL          default gpt-4.1-mini-2025-04-14
     LLM_EXTRA_HEADERS  JSON object of extra headers (gateway auth, tenant tags)
     LLM_FAKE           set to "1" to run fully offline against canned replies
-    LLM_TIMEOUT        per-request socket timeout in seconds (default 60)
-    LLM_MAX_RETRIES    attempts on 429/5xx before giving up (default 4)
+    LLM_TIMEOUT        per-request socket timeout in seconds (default 8)
+    LLM_MAX_RETRIES    attempts on 429/5xx before giving up (default 4, cap 4)
+    LLM_RUN_BUDGET_S   wall clock for one complete() including retries (default 22)
 
 Two wire quirks are deliberate and must not be "cleaned up":
 
@@ -22,9 +23,9 @@ Two wire quirks are deliberate and must not be "cleaned up":
 
 from __future__ import annotations
 
+import http.client
 import json
 import os
-import random
 import re
 import time
 import urllib.error
@@ -38,11 +39,24 @@ except ImportError:  # pragma: no cover - exercised by direct script runs
 
 DEFAULT_BASE_URL = "https://api.openai.com/v1"
 DEFAULT_MODEL = "gpt-4.1-mini-2025-04-14"
+DEFAULT_TIMEOUT_S = 8.0
+DEFAULT_RUN_BUDGET_S = 22.0
 _RETRY_STATUS = {408, 409, 429, 500, 502, 503, 504}
 
 
 class LLMError(RuntimeError):
     """Raised when the model endpoint cannot be reached or returns a hard error."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        status: int = 502,
+        code: str = "upstream_error",
+    ) -> None:
+        super().__init__(message)
+        self.status = status
+        self.code = code
 
 
 def _model() -> str:
@@ -90,14 +104,20 @@ def complete(
             result = _live_completion(messages, max_tokens=max_tokens, tools=tools)
 
         usage = result["usage"]
+        input_tokens = int(usage.get("input_tokens", 0))
+        output_tokens = int(usage.get("output_tokens", 0))
+        reported = str(result.get("model") or model)
+        cost = tracing.cost_usd_for(reported, input_tokens, output_tokens)
         span.update(
             **{
-                "gen_ai.usage.input_tokens": usage.get("input_tokens", 0),
-                "gen_ai.usage.output_tokens": usage.get("output_tokens", 0),
-                "gen_ai.response.model": result.get("model", model),
+                "gen_ai.usage.input_tokens": input_tokens,
+                "gen_ai.usage.output_tokens": output_tokens,
+                "gen_ai.usage.cost_usd": cost,
+                "gen_ai.response.model": reported,
                 "gen_ai.response.finish_reasons": [result.get("finish_reason", "stop")],
             }
         )
+        result["cost_usd"] = cost
         return result
 
 
@@ -129,35 +149,102 @@ def _live_completion(
     headers.update(_extra_headers())
 
     body = json.dumps(payload).encode("utf-8")
-    timeout = float(os.environ.get("LLM_TIMEOUT", "60"))
-    attempts = max(1, int(os.environ.get("LLM_MAX_RETRIES", "4")))
-    last_error: Exception | None = None
+    timeout = float(os.environ.get("LLM_TIMEOUT", str(DEFAULT_TIMEOUT_S)))
+    attempts = min(4, max(1, int(os.environ.get("LLM_MAX_RETRIES", "4"))))
+    deadline = time.monotonic() + float(
+        os.environ.get("LLM_RUN_BUDGET_S", str(DEFAULT_RUN_BUDGET_S))
+    )
+    last_error: LLMError | None = None
 
     for attempt in range(attempts):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0.2:
+            raise last_error or LLMError(
+                "run budget exhausted", status=504, code="upstream_timeout"
+            )
+        call_timeout = min(timeout, max(0.2, remaining))
         request = urllib.request.Request(
             f"{base_url}/chat/completions", data=body, headers=headers, method="POST"
         )
         try:
-            with urllib.request.urlopen(request, timeout=timeout) as response:
+            with urllib.request.urlopen(request, timeout=call_timeout) as response:
                 raw = json.loads(response.read().decode("utf-8"))
+            if not isinstance(raw, dict) or not (raw.get("choices") or raw.get("output")):
+                raise LLMError(
+                    "model output is not a chat completion",
+                    status=502,
+                    code="malformed_model_output",
+                )
             return _normalise(raw, model)
+        except LLMError:
+            raise
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", "replace")[:500]
-            last_error = LLMError(f"HTTP {exc.code} from {base_url}: {detail}")
+            if exc.code == 429:
+                last_error = LLMError(
+                    f"HTTP 429 from {base_url}: {detail}",
+                    status=503,
+                    code="upstream_rate_limited",
+                )
+                if attempt == attempts - 1:
+                    raise last_error from exc
+                wait = _retry_after_seconds(exc)
+                time.sleep(min(wait, max(0.0, deadline - time.monotonic())))
+                continue
+            last_error = LLMError(
+                f"HTTP {exc.code} from {base_url}: {detail}",
+                status=502,
+                code="upstream_error",
+            )
             if exc.code not in _RETRY_STATUS or attempt == attempts - 1:
                 raise last_error from exc
-        except (urllib.error.URLError, TimeoutError) as exc:
-            last_error = LLMError(f"transport error talking to {base_url}: {exc}")
+            time.sleep(min(0.2 * (attempt + 1), max(0.0, deadline - time.monotonic())))
+            continue
+        except TimeoutError as exc:
+            raise LLMError(
+                f"model call timed out after {call_timeout:.1f}s",
+                status=504,
+                code="upstream_timeout",
+            ) from exc
+        except urllib.error.URLError as exc:
+            if isinstance(exc.reason, TimeoutError) or "timed out" in str(exc).lower():
+                raise LLMError(
+                    f"model call timed out after {call_timeout:.1f}s",
+                    status=504,
+                    code="upstream_timeout",
+                ) from exc
+            last_error = LLMError(
+                f"transport error talking to {base_url}: {exc}",
+                status=502,
+                code="upstream_error",
+            )
             if attempt == attempts - 1:
                 raise last_error from exc
-        _sleep_backoff(attempt)
+        except (
+            json.JSONDecodeError,
+            http.client.IncompleteRead,
+            ValueError,
+        ) as exc:
+            last_error = LLMError(
+                f"incomplete or invalid model body: {exc}",
+                status=502,
+                code="upstream_error",
+            )
+            if attempt == attempts - 1:
+                raise last_error from exc
+        time.sleep(min(0.2 * (attempt + 1), max(0.0, deadline - time.monotonic())))
 
     raise last_error or LLMError("model call failed for an unknown reason")
 
 
-def _sleep_backoff(attempt: int) -> None:
-    delay = min(8.0, 0.5 * (2**attempt))
-    time.sleep(delay + random.uniform(0.0, 0.25))
+def _retry_after_seconds(exc: urllib.error.HTTPError) -> float:
+    raw = ""
+    if exc.headers is not None:
+        raw = exc.headers.get("Retry-After") or ""
+    try:
+        return max(0.0, min(8.0, float(raw)))
+    except ValueError:
+        return 1.0
 
 
 def _normalise(raw: dict, model: str) -> dict:

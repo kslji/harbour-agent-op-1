@@ -81,6 +81,11 @@ def last_audit(bk: Backend) -> dict:
     return bk.audit_trail(CASE)[-1]
 
 
+def verify_on_file(bk: Backend, customer_id: str) -> None:
+    last4 = {"cu_100": "3210", "cu_200": "5678", "cu_300": "1122"}[customer_id]
+    assert bk.verify_identity(CASE, customer_id, last4) is True
+
+
 def verified_before(trail: list[dict], tool: str, customer_id: str) -> bool:
     """Check an ordered audit trail.
 
@@ -165,6 +170,7 @@ def test_verify_identity_unknown_customer(bk: Backend) -> None:
 
 
 def test_schedule_payment_happy(bk: Backend) -> None:
+    verify_on_file(bk, "cu_200")
     payment_id = bk.schedule_payment(CASE, "ln_200", 5000.0, "2026-09-25")
     row = bk.conn.execute(
         "SELECT * FROM payments WHERE payment_id = ?", (payment_id,)
@@ -180,31 +186,37 @@ def test_schedule_payment_requires_verified_customer(bk: Backend) -> None:
 
 
 def test_schedule_payment_in_the_past_is_refused(bk: Backend) -> None:
+    verify_on_file(bk, "cu_200")
     with pytest.raises(PolicyError, match="in the past"):
         bk.schedule_payment(CASE, "ln_200", 5000.0, "2026-09-01")
 
 
 def test_schedule_payment_beyond_window_is_refused(bk: Backend) -> None:
+    verify_on_file(bk, "cu_200")
     with pytest.raises(PolicyError, match="days ahead"):
         bk.schedule_payment(CASE, "ln_200", 5000.0, "2026-12-31")
 
 
 def test_schedule_payment_on_closed_loan_is_refused(bk: Backend) -> None:
+    verify_on_file(bk, "cu_200")
     with pytest.raises(PolicyError, match="closed"):
         bk.schedule_payment(CASE, "ln_201", 5000.0, "2026-09-25")
 
 
 def test_schedule_payment_below_minimum_is_refused(bk: Backend) -> None:
+    verify_on_file(bk, "cu_200")
     with pytest.raises(PolicyError, match="below the minimum"):
         bk.schedule_payment(CASE, "ln_200", 10.0, "2026-09-25")
 
 
 def test_schedule_payment_above_ceiling_is_refused(bk: Backend) -> None:
+    verify_on_file(bk, "cu_200")
     with pytest.raises(PolicyError, match="ceiling"):
         bk.schedule_payment(CASE, "ln_200", policy.PAYMENT_MAX_AMOUNT_INR + 1, "2026-09-25")
 
 
 def test_schedule_payment_bad_date_is_refused(bk: Backend) -> None:
+    verify_on_file(bk, "cu_200")
     with pytest.raises(PolicyError, match="ISO date"):
         bk.schedule_payment(CASE, "ln_200", 5000.0, "25/09/2026")
 
@@ -215,6 +227,7 @@ def test_schedule_payment_bad_date_is_refused(bk: Backend) -> None:
 
 
 def test_waive_fee_happy(bk: Backend) -> None:
+    verify_on_file(bk, "cu_200")
     assert bk.waive_fee(CASE, "fe_100") is True
     row = bk.conn.execute("SELECT status FROM fees WHERE fee_id = 'fe_100'").fetchone()
     assert row["status"] == "waived"
@@ -226,16 +239,19 @@ def test_waive_fee_requires_verified_customer(bk: Backend) -> None:
 
 
 def test_waive_fee_already_waived_is_refused(bk: Backend) -> None:
+    verify_on_file(bk, "cu_200")
     with pytest.raises(PolicyError, match="already been waived"):
         bk.waive_fee(CASE, "fe_101")
 
 
 def test_waive_fee_above_amount_ceiling_is_refused(bk: Backend) -> None:
+    verify_on_file(bk, "cu_200")
     with pytest.raises(PolicyError, match="single-waiver limit"):
         bk.waive_fee(CASE, "fe_102")
 
 
 def test_waive_fee_over_12_month_cap_is_refused(bk: Backend) -> None:
+    verify_on_file(bk, "cu_300")
     with pytest.raises(PolicyError, match="cap is"):
         bk.waive_fee(CASE, "fe_112")
 
@@ -251,6 +267,7 @@ def test_waive_fee_missing(bk: Backend) -> None:
 
 
 def test_apply_hardship_plan_happy(bk: Backend) -> None:
+    verify_on_file(bk, "cu_200")
     assert bk.apply_hardship_plan(CASE, "ln_200", 3) is True
     loan = bk.conn.execute("SELECT status FROM loans WHERE loan_id = 'ln_200'").fetchone()
     customer = bk.conn.execute(
@@ -266,26 +283,31 @@ def test_apply_hardship_plan_requires_verified_customer(bk: Backend) -> None:
 
 
 def test_apply_hardship_plan_term_too_long_is_refused(bk: Backend) -> None:
+    verify_on_file(bk, "cu_200")
     with pytest.raises(PolicyError, match="exceeds"):
         bk.apply_hardship_plan(CASE, "ln_200", policy.HARDSHIP_MAX_TERM_MONTHS + 1)
 
 
 def test_apply_hardship_plan_term_too_short_is_refused(bk: Backend) -> None:
+    verify_on_file(bk, "cu_200")
     with pytest.raises(PolicyError, match="at least"):
         bk.apply_hardship_plan(CASE, "ln_200", 0)
 
 
 def test_apply_hardship_plan_loan_too_new_is_refused(bk: Backend) -> None:
+    verify_on_file(bk, "cu_200")
     with pytest.raises(PolicyError, match="on the book"):
         bk.apply_hardship_plan(CASE, "ln_202", 3)
 
 
 def test_apply_hardship_plan_ineligible_status_is_refused(bk: Backend) -> None:
+    verify_on_file(bk, "cu_200")
     with pytest.raises(PolicyError, match="eligible"):
         bk.apply_hardship_plan(CASE, "ln_201", 3)
 
 
 def test_apply_hardship_plan_second_concurrent_plan_is_refused(bk: Backend) -> None:
+    verify_on_file(bk, "cu_300")
     with pytest.raises(PolicyError, match="already on a hardship plan"):
         bk.apply_hardship_plan(CASE, "ln_300", 3)
 
@@ -425,6 +447,7 @@ def test_cancel_autopay_happy(bk: Backend) -> None:
 
 
 def test_cancel_autopay_when_not_active_is_refused(bk: Backend) -> None:
+    verify_on_file(bk, "cu_200")
     with pytest.raises(PolicyError, match="not active"):
         bk.cancel_autopay(CASE, "ln_202")
 
@@ -537,6 +560,7 @@ def test_audit_log_scopes_by_case(bk: Backend) -> None:
         pytest.param(lambda b: b.schedule_payment(CASE, "ln_100", 5000.0, "2026-09-25"), id="schedule_payment"),
         pytest.param(lambda b: b.waive_fee(CASE, "fe_120"), id="waive_fee"),
         pytest.param(lambda b: b.apply_hardship_plan(CASE, "ln_100", 3), id="apply_hardship_plan"),
+        pytest.param(lambda b: b.cancel_autopay(CASE, "ln_100"), id="cancel_autopay"),
     ],
 )
 def test_money_tools_refuse_an_unverified_customer(bk: Backend, call) -> None:
@@ -550,12 +574,22 @@ def test_money_tools_refuse_an_unverified_customer(bk: Backend, call) -> None:
         pytest.param(lambda b: b.schedule_payment(CASE, "ln_100", 5000.0, "2026-09-25"), id="schedule_payment"),
         pytest.param(lambda b: b.waive_fee(CASE, "fe_120"), id="waive_fee"),
         pytest.param(lambda b: b.apply_hardship_plan(CASE, "ln_100", 3), id="apply_hardship_plan"),
+        pytest.param(lambda b: b.cancel_autopay(CASE, "ln_100"), id="cancel_autopay"),
     ],
 )
 def test_money_tools_succeed_once_verified(bk: Backend, call) -> None:
     assert bk.verify_identity(CASE, "cu_100", "3210") is True
     call(bk)
     assert last_audit(bk)["ok"] == 1
+
+
+def test_sticky_customer_verified_does_not_count_as_this_contact(bk: Backend) -> None:
+    row = bk.conn.execute("SELECT verified FROM customers WHERE customer_id = 'cu_200'").fetchone()
+    assert row["verified"] == 1
+    with pytest.raises(PolicyError, match="identity not verified"):
+        bk.schedule_payment(CASE, "ln_200", 5000.0, "2026-09-25")
+    with pytest.raises(PolicyError, match="identity not verified"):
+        bk.cancel_autopay(CASE, "ln_200")
 
 
 
@@ -574,7 +608,8 @@ def test_verified_before_detector_is_not_vacuous(bk: Backend) -> None:
     other.conn.executemany("INSERT INTO loans VALUES (?,?,?,?,?,?,?,?,?)", LOANS)
     other.conn.commit()
     assert other.verify_identity(CASE, "cu_100", "0000") is False
-    other.cancel_autopay(CASE, "ln_100")
+    with pytest.raises(PolicyError, match="identity not verified"):
+        other.cancel_autopay(CASE, "ln_100")
     assert verified_before(other.audit_trail(CASE), "cancel_autopay", "cu_100") is False
     other.close()
 

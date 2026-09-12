@@ -1,0 +1,116 @@
+{
+  "harness_version": "1.0",
+  "target": "http://127.0.0.1:8080",
+  "upstream": "https://api.openai.com/v1",
+  "repo": ".",
+  "started_at": "2026-09-12T09:31:14+00:00",
+  "finished_at": "2026-09-12T09:32:15+00:00",
+  "service_log": null,
+  "items": [
+    {
+      "id": 1,
+      "name": "route every model call through LLM_BASE_URL",
+      "status": "fail",
+      "reason": "not run: http://127.0.0.1:8080 not healthy and ready within 60.0s",
+      "evidence": {}
+    },
+    {
+      "id": 2,
+      "name": "/healthz and /readyz",
+      "status": "fail",
+      "reason": "not run: http://127.0.0.1:8080 not healthy and ready within 60.0s",
+      "evidence": {}
+    },
+    {
+      "id": 3,
+      "name": "OpenTelemetry traces",
+      "status": "fail",
+      "reason": "not run: http://127.0.0.1:8080 not healthy and ready within 60.0s",
+      "evidence": {}
+    },
+    {
+      "id": 4,
+      "name": "hard spend cap",
+      "status": "fail",
+      "reason": "not run: http://127.0.0.1:8080 not healthy and ready within 60.0s",
+      "evidence": {}
+    },
+    {
+      "id": 5,
+      "name": "fault injection",
+      "status": "fail",
+      "reason": "not run: http://127.0.0.1:8080 not healthy and ready within 60.0s",
+      "evidence": {}
+    },
+    {
+      "id": 6,
+      "name": "idempotency key",
+      "status": "fail",
+      "reason": "not run: http://127.0.0.1:8080 not healthy and ready within 60.0s",
+      "evidence": {}
+    },
+    {
+      "id": 7,
+      "name": "secrets only from the environment",
+      "status": "fail",
+      "reason": "not run: http://127.0.0.1:8080 not healthy and ready within 60.0s",
+      "evidence": {}
+    },
+    {
+      "id": 8,
+      "name": "two versions side by side",
+      "status": "fail",
+      "reason": "not run: http://127.0.0.1:8080 not healthy and ready within 60.0s",
+      "evidence": {}
+    },
+    {
+      "id": 9,
+      "name": "make eval and prompt regressions",
+      "status": "fail",
+      "reason": "not run: http://127.0.0.1:8080 not healthy and ready within 60.0s",
+      "evidence": {}
+    },
+    {
+      "id": 10,
+      "name": "RUNBOOK, THREAT_MODEL, SLO",
+      "status": "fail",
+      "reason": "not run: http://127.0.0.1:8080 not healthy and ready within 60.0s",
+      "evidence": {}
+    }
+  ],
+  "fault_scenarios": [],
+  "regressions": [
+    {
+      "name": "strip_system_prompt",
+      "status": "skip",
+      "reason": "regression was not reached; see item 9 or startup failure"
+    },
+    {
+      "name": "truncate_output",
+      "status": "skip",
+      "reason": "regression was not reached; see item 9 or startup failure"
+    },
+    {
+      "name": "scramble_tool_args",
+      "status": "skip",
+      "reason": "regression was not reached; see item 9 or startup failure"
+    },
+    {
+      "name": "model_identity_drift",
+      "status": "skip",
+      "reason": "regression was not reached; see item 9 or startup failure"
+    }
+  ],
+  "latency": {
+    "status": "skip"
+  },
+  "summary": {
+    "contract_items_passed": 0,
+    "contract_items_run": 10,
+    "fault_scenarios_passed_pct": null,
+    "latency_overhead_ratio": null,
+    "eval_cases": null,
+    "eval_regression_threshold": null,
+    "all_run_items_passed": false
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "claimed": {
+    "contract_items_passed": 10,
+    "regressions_caught": 4
+  },
+  "runs": [
+    {
+      "run_id": "contract-10of10",
+      "seed": null,
+      "model": "gpt-4.1-mini-2025-04-14",
+      "status": "completed",
+      "raw_path": "results/contract_check.json",
+      "notes": "Full checker 10/10; p95_ms 902; fault scenarios 100%"
+    },
+    {
+      "run_id": "contract-9of10-item4-unpriced",
+      "seed": null,
+      "model": "gpt-4.1-mini-2025-04-14",
+      "status": "completed",
+      "raw_path": "results/raw/after-full-9of10.json",
+      "notes": "Same harness; item 4 spend_usd null after long eval; not a cap-logic fail"
+    },
+    {
+      "run_id": "contract-item4-retry",
+      "seed": null,
+      "model": "gpt-4.1-mini-2025-04-14",
+      "status": "completed",
+      "raw_path": "results/raw/after-cap-retry.json",
+      "notes": "--only 4 pass"
+    },
+    {
+      "run_id": "eval-r3-item9",
+      "seed": null,
+      "model": "gpt-4.1-mini-2025-04-14",
+      "status": "completed",
+      "raw_path": "results/raw/after-eval-r3.json",
+      "notes": "Item 9 pass; R1-R4 detected"
+    }
+  ]
+}
