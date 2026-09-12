@@ -1,0 +1,13 @@
+upstream-board/
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+harbour.db
+*.db
+traces/
+eval/eval_report.json
+eval_report.json
+.env
+.DS_Store
