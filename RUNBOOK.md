@@ -25,8 +25,11 @@ they both write cases.
 
 - `GET /healthz` → `{"status":"ok","version":"<APP_VERSION>"}`
 - `GET /readyz` → 200 when the DB opens and `MAX_SPEND_USD` parses; 503 otherwise
+- There is no search index to load. `checks.index_loaded` is always true; ready is DB + cap only.
 - `POST /run` and `POST /case` are the work endpoints
 - Unset `LLM_FAKE` for real model traffic; `LLM_FAKE=1` is canned replies only
+
+
 
 ## Two versions at once
 
@@ -49,9 +52,9 @@ Target: under five minutes. No image rebuild.
 2. Stop sending traffic to B (checker: it stops the B process).
 3. Confirm A `/healthz` still matches the previous `APP_VERSION` and `POST /run` returns 200.
 4. If A is the bad one: start the last known-good command line with the old
-   `APP_VERSION` on a free port, switch traffic, then stop the bad listener.
+  `APP_VERSION` on a free port, switch traffic, then stop the bad listener.
 5. If spend is the incident: stop the process. Cap is in-process; a restart
-   resets the counter. Fix `MAX_SPEND_USD` before bringing it back.
+  resets the counter. Fix `MAX_SPEND_USD` before bringing it back.
 
 Wall clock for a local two-process swap is a start plus two health checks,
 not a deploy pipeline.

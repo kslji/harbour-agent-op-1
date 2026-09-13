@@ -12,7 +12,7 @@ Report: results/raw/after-openai-port8000.json (and later probe-this-shell.json 
 Full checker: results/raw/after-openai-full.json. 4/10. p95 1399 ms.
 Pass: 1 routing, 2 health/ready, 4 spend cap, 7 secrets.
 Fail: 3 no OTLP POST; 6 no idempotency cache; 5 ReadTimeout on slow10x/tool_timeout (need bounded timeout + 504); 8/10 missing RUNBOOK (rollback heading), THREAT_MODEL, SLO; 9 no Makefile/eval_report.json.
-Fault scenarios 66.7%. Earlier 0/10 “spend cannot be verified” was empty/wrong OpenAI key or OpenRouter, not missing /run.
+Fault scenarios 66.7%. Earlier 0/10 “spend cannot be verified” was an empty or wrong OpenAI key, not missing `/run`.
 
 
 2026-09-12 (later) — In-process POST /run idempotency cache + per-key lock in harbour/service.py.
@@ -61,3 +61,7 @@ Next: keep this JSON under results/raw/; --only 4 retry; if that passes, another
 
 2026-09-13 (early, full checker retry) — Same command, --report results/contract_check.json.
 Result: 10/10, fault scenarios 100%, p95 902 ms. Item 4 pass. R1–R4 detected.
+
+2026-09-13 (afternoon, published goal_scorer smoke) — Unmodified goal_scorer.py, fresh in-memory seed per case, gpt-4.1-mini-2025-04-14, LLM_FAKE unset. Local runner `/tmp/score_published_harbour.py` (not committed). First LIMIT=12 (all fee_waiver): 10/12. Then all 180 published cases: **121/180** goal_state match. Family: autopay 13/15, contact 11/15, dispute_close 9/15, dispute_open 7/15, document 12/15, fee_waiver 12/15, hardship 8/15, identity 10/15, injected 8/15, out_of_scope 14/15, payment_reschedule 7/15, statement 10/15. Failures (59) are mostly waive/schedule vs escalate on caps, already-waived fees, charity trigger, “cannot move EMI”, closed loan — not overlay money tools. No results/raw dump (stdout only). This is the published practice set, not the 60 held-out cases. I am not putting 121/180 in claimed.
+
+2026-09-13 (evening, tool spans) — Item 3 already passed on synthetic `/run` with chat spans only (often no tools). The brief still asks for a span per tool. `record_tool_call` existed in tracing.py but `_call_tool` never called it. Wired it: each backend tool emits `gen_ai.operation.name=execute_tool` and `gen_ai.tool.name` on the same `trace_id` as the case. Overlay blocks that never hit the backend still have no span (same as no audit row). Check: `pytest harbour/tests` 90 passed, including `test_case_run_writes_model_spans`. This is for traces/detectors, not `goal_scorer` / the 180 count. Did not re-run the full 10-item checker.

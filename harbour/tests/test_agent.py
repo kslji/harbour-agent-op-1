@@ -309,6 +309,20 @@ def test_case_run_writes_model_spans(offline_env):
         assert attrs["gen_ai.usage.output_tokens"] > 0
         assert span["end_ms"] >= span["start_ms"]
 
+    tool_spans = [
+        s
+        for s in spans
+        if s["attributes"].get("gen_ai.operation.name") == "execute_tool"
+    ]
+    assert tool_spans, "each backend tool must emit an execute_tool span"
+    names = {s["attributes"]["gen_ai.tool.name"] for s in tool_spans}
+    assert "verify_identity" in names
+    assert "waive_fee" in names
+    for span in tool_spans:
+        assert span["trace_id"] == result["trace_id"]
+        assert span["parent_span_id"]
+        assert span["attributes"]["harbour.case_id"] == "c_0004"
+
 
 def test_span_shape_matches_the_flattened_otlp_contract(offline_env):
     with tracing.start_span("chat probe", **{"harbour.case_id": "c_probe"}):

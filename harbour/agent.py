@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 from pathlib import Path
 from typing import Any, Callable
 
@@ -384,12 +385,30 @@ def _render_result(tool: str, result: Any) -> str:
 def _call_tool(
     backend: Any, case_id: str, tool: str, args: dict[str, Any]
 ) -> tuple[bool, Any]:
+    started = time.time()
     handler: Callable[..., Any] | None = getattr(backend, tool, None)
     if handler is None:
+        tracing.record_tool_call(
+            tool, case_id, ok=False, duration_ms=0, error=f"unknown tool {tool!r}"
+        )
         return False, f"unknown tool {tool!r}"
     try:
-        return True, handler(case_id, **args)
+        result = handler(case_id, **args)
+        tracing.record_tool_call(
+            tool,
+            case_id,
+            ok=True,
+            duration_ms=max(0, int((time.time() - started) * 1000)),
+        )
+        return True, result
     except Exception as exc:  # noqa: BLE001 - surfaced back to the model
+        tracing.record_tool_call(
+            tool,
+            case_id,
+            ok=False,
+            duration_ms=max(0, int((time.time() - started) * 1000)),
+            error=f"{type(exc).__name__}: {exc}",
+        )
         return False, f"{type(exc).__name__}: {exc}"
 
 
