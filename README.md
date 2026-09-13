@@ -1,6 +1,6 @@
-# Harbour — OP-01 solution
+# Harbour Agent: OP-01 solution
 
-Hardened loan-servicing agent for Deployment.inc Open Problem 01. Keep `POST /case`. Do not treat this folder as `references/OP-01` on the public board.
+This is my OP-01 solution: Harbour as I inherited it, then made it something platform could put behind a load balancer. `POST /case` is unchanged. This repo is the private solution, not a copy of the public `references/OP-01` folder.
 
 **Do not commit API keys.** Export them in the shell.
 
@@ -27,6 +27,8 @@ export MAX_SPEND_USD=5
 ./scripts/reproduce.sh eval     # make eval → eval_report.json at repo root
 ./scripts/reproduce.sh help     # how to invoke the contract checker
 ```
+
+
 
 ## What changed (short)
 
